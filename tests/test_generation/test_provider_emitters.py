@@ -6,11 +6,13 @@ from riseon_agents.generation.provider_capabilities import ProviderTarget
 from riseon_agents.generation.provider_emitters import (
     emit_codex_agent_manifest,
     emit_gemini_agent_manifest,
+    emit_hermes_identity,
     emit_project_instructions,
     emit_skill_surface,
 )
 from riseon_agents.models.agent_profile import AgentProfile
 from riseon_agents.models.generation import GenerationTarget
+from riseon_agents.models.identity_spec import IdentitySpec
 from riseon_agents.models.project_instructions import ProjectInstructions
 from riseon_agents.models.skill_spec import SkillSpec
 
@@ -117,3 +119,18 @@ class TestProviderEmitters:
         assert "mcpServers:" in content
         assert "max_turns: 10" in content
         assert "# Test Agent Prompt" in content
+
+    def test_emit_hermes_identity(self, temp_dir: Path) -> None:
+        """Hermes identity should emit to SOUL.md as a separate surface."""
+        identity = IdentitySpec(
+            name="test-identity",
+            body="# Soul\n\nYou are the Hermes identity.",
+            metadata={"author": "Test Author"},
+        )
+
+        target = GenerationTarget.local(temp_dir)
+        output_path = emit_hermes_identity(target, identity, ProviderTarget.HERMES)
+
+        assert output_path == temp_dir / "SOUL.md"
+        assert output_path.exists()
+        assert output_path.read_text(encoding="utf-8") == "# Soul\n\nYou are the Hermes identity.\n"

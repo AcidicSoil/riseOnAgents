@@ -7,6 +7,7 @@ import yaml
 from riseon_agents.generation.provider_capabilities import ProviderTarget
 from riseon_agents.models.agent_profile import AgentProfile
 from riseon_agents.models.generation import GenerationTarget
+from riseon_agents.models.identity_spec import IdentitySpec
 from riseon_agents.models.project_instructions import ProjectInstructions
 from riseon_agents.models.skill_spec import SkillSpec
 
@@ -69,6 +70,21 @@ def emit_gemini_agent_manifest(
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     output_path.write_text(_render_gemini_agent_markdown(agent_profile), encoding="utf-8")
+    return output_path
+
+
+def emit_hermes_identity(
+    target: GenerationTarget,
+    identity: IdentitySpec,
+    provider: ProviderTarget,
+) -> Path:
+    """Emit a Hermes-native identity file."""
+    if provider is not ProviderTarget.HERMES:
+        raise ValueError(f"Unsupported provider for Hermes identity: {provider.value}")
+
+    output_path = target.provider_output_path(provider, "identity")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(identity.body.rstrip() + "\n", encoding="utf-8")
     return output_path
 
 

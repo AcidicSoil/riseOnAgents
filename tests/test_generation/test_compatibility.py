@@ -1,4 +1,4 @@
-"""Tests for compatibility generation for provider agent manifests."""
+"""Tests for compatibility generation for provider surfaces."""
 
 from pathlib import Path
 
@@ -6,10 +6,12 @@ from riseon_agents.generation.compatibility import CompatibilityGenerator
 from riseon_agents.generation.provider_capabilities import ProviderTarget
 from riseon_agents.models.agent_profile import AgentProfile
 from riseon_agents.models.generation import GenerationTarget
+from riseon_agents.models.identity_spec import IdentitySpec
+from riseon_agents.models.project_instructions import ProjectInstructions
 
 
-class TestProviderAgentManifestGeneration:
-    """Tests for Codex and Gemini agent manifest generation."""
+class TestProviderCompatibilityGeneration:
+    """Tests for Codex, Gemini, and Hermes compatibility generation."""
 
     def test_generate_codex_agent_manifest(self, temp_dir: Path) -> None:
         """Codex agent manifests should be emitted with the correct path and TOML content."""
@@ -87,8 +89,46 @@ class TestProviderAgentManifestGeneration:
         assert "max_turns: 10" in content
         assert "# Test Agent Prompt" in content
 
-    def test_generate_multi_target_agent_manifests(self, temp_dir: Path) -> None:
-        """A single run should emit both Codex and Gemini agent manifests."""
+    def test_generate_hermes_project_context_and_identity(self, temp_dir: Path) -> None:
+        """Hermes should emit separate project context and identity surfaces."""
+        instructions = [
+            ProjectInstructions(
+                name="test-project",
+                description="Hermes context",
+                body="# Hermes Context\n\nProject guidance.",
+            )
+        ]
+        identities = [
+            IdentitySpec(
+                name="test-identity",
+                body="# Soul\n\nYou are the Hermes identity.",
+            )
+        ]
+
+        target = GenerationTarget.local(temp_dir)
+        generator = CompatibilityGenerator()
+        result = generator.generate(
+            target=target,
+            providers=[ProviderTarget.HERMES],
+            project_instructions=instructions,
+            skills=[],
+            agent_profiles=[],
+            identity_specs=identities,
+        )
+
+        assert result.error_count == 0
+        paths = {generated.path for generated in result.files}
+        assert temp_dir / ".hermes.md" in paths
+        assert temp_dir / "SOUL.md" in paths
+        assert (temp_dir / ".hermes.md").read_text(encoding="utf-8") == (
+            "# Hermes Context\n\nProject guidance.\n"
+        )
+        assert (temp_dir / "SOUL.md").read_text(encoding="utf-8") == (
+            "# Soul\n\nYou are the Hermes identity.\n"
+        )
+
+    def test_generate_multi_target_agent_and_hermes_surfaces(self, temp_dir: Path) -> None:
+        """A single run should emit Codex manifests and Hermes context or identity files."""
         agent_profile = AgentProfile(
             name="test-agent",
             description="Test agent description",
@@ -100,18 +140,33 @@ class TestProviderAgentManifestGeneration:
             temperature=0.7,
             permissions={"perm1": "value1"},
         )
+        instructions = [
+            ProjectInstructions(
+                name="test-project",
+                description="Hermes context",
+                body="# Hermes Context\n\nProject guidance.",
+            )
+        ]
+        identities = [
+            IdentitySpec(
+                name="test-identity",
+                body="# Soul\n\nYou are the Hermes identity.",
+            )
+        ]
 
         target = GenerationTarget.local(temp_dir)
         generator = CompatibilityGenerator()
         result = generator.generate(
             target=target,
-            providers=[ProviderTarget.CODEX, ProviderTarget.GEMINI],
-            project_instructions=[],
+            providers=[ProviderTarget.CODEX, ProviderTarget.HERMES],
+            project_instructions=instructions,
             skills=[],
             agent_profiles=[agent_profile],
+            identity_specs=identities,
         )
 
         assert result.error_count == 0
         paths = {generated.path for generated in result.files}
         assert temp_dir / ".codex" / "agents" / "test-agent.toml" in paths
-        assert temp_dir / ".gemini" / "agents" / "test-agent.md" in paths
+        assert temp_dir / ".hermes.md" in paths
+        assert temp_dir / "SOUL.md" in paths
