@@ -4,9 +4,12 @@ from pathlib import Path
 
 from riseon_agents.generation.provider_capabilities import ProviderTarget
 from riseon_agents.generation.provider_emitters import (
+    emit_codex_agent_manifest,
+    emit_gemini_agent_manifest,
     emit_project_instructions,
     emit_skill_surface,
 )
+from riseon_agents.models.agent_profile import AgentProfile
 from riseon_agents.models.generation import GenerationTarget
 from riseon_agents.models.project_instructions import ProjectInstructions
 from riseon_agents.models.skill_spec import SkillSpec
@@ -61,3 +64,56 @@ class TestProviderEmitters:
         hermes_path = emit_project_instructions(target, project_instructions, ProviderTarget.HERMES)
         assert hermes_path == temp_dir / ".hermes.md"
         assert hermes_path.exists()
+
+    def test_emit_codex_agent_manifest(self, temp_dir: Path) -> None:
+        """Codex agent manifests should use the native TOML path and fields."""
+        agent_profile = AgentProfile(
+            name="test-agent",
+            description="Test agent description",
+            prompt="# Test Agent Prompt",
+            tools=["tool1", "tool2"],
+            mcp_servers=["server1"],
+            model="test-model",
+            max_turns=10,
+            temperature=0.7,
+            permissions={"perm1": "value1"},
+        )
+
+        target = GenerationTarget.local(temp_dir)
+        output_path = emit_codex_agent_manifest(target, agent_profile, ProviderTarget.CODEX)
+
+        assert output_path == temp_dir / ".codex" / "agents" / "test-agent.toml"
+        assert output_path.exists()
+
+        content = output_path.read_text(encoding="utf-8")
+        assert 'name = "test-agent"' in content
+        assert 'description = "Test agent description"' in content
+        assert 'developer_instructions = "# Test Agent Prompt"' in content
+        assert 'tools = ["tool1", "tool2"]' in content
+
+    def test_emit_gemini_agent_manifest(self, temp_dir: Path) -> None:
+        """Gemini agent manifests should use markdown with YAML frontmatter."""
+        agent_profile = AgentProfile(
+            name="test-agent",
+            description="Test agent description",
+            prompt="# Test Agent Prompt",
+            tools=["tool1", "tool2"],
+            mcp_servers=["server1"],
+            model="test-model",
+            max_turns=10,
+            temperature=0.7,
+        )
+
+        target = GenerationTarget.local(temp_dir)
+        output_path = emit_gemini_agent_manifest(target, agent_profile, ProviderTarget.GEMINI)
+
+        assert output_path == temp_dir / ".gemini" / "agents" / "test-agent.md"
+        assert output_path.exists()
+
+        content = output_path.read_text(encoding="utf-8")
+        assert content.startswith("---\n")
+        assert "name: test-agent" in content
+        assert "description: Test agent description" in content
+        assert "mcpServers:" in content
+        assert "max_turns: 10" in content
+        assert "# Test Agent Prompt" in content

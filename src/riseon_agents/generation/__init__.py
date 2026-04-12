@@ -13,6 +13,8 @@ from riseon_agents.generation.provider_capabilities import (
     get_provider_capabilities,
 )
 from riseon_agents.generation.provider_emitters import (
+    emit_codex_agent_manifest,
+    emit_gemini_agent_manifest,
     emit_project_instructions,
     emit_skill_surface,
 )
@@ -29,6 +31,8 @@ __all__ = [
     "SkillsGenerator",
     "emit_skill_surface",
     "emit_project_instructions",
+    "emit_codex_agent_manifest",
+    "emit_gemini_agent_manifest",
     "ProviderTarget",
     "ArtifactFormat",
     "ProviderCapabilities",
