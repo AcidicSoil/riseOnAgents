@@ -1,0 +1,186 @@
+name = "speckit-clarify"
+description = "Identify underspecified areas in the current feature spec by asking up to 5 targeted clarification questions and encoding answers back into the spec."
+model_reasoning_effort = "high"
+
+developer_instructions = '''
+Goal: detect and reduce ambiguity or missing decision points in the active feature specification and record clarifications directly in the spec file.
+
+Treat the source command spec as authoritative. Preserve its execution order, limits, and reporting contract. This clarification workflow is expected to run and complete before speckit-plan. If the user explicitly states they are skipping clarification, you may proceed, but warn that downstream rework risk increases.
+
+Runtime context:
+- You MUST consider the user-provided runtime context ($ARGUMENTS) before proceeding, if it is not empty.
+
+Execution steps:
+1. From the repo root, run this command exactly once:
+   `.specify/scripts/bash/check-prerequisites.sh --json --paths-only`
+   - Parse these JSON fields:
+     - `FEATURE_DIR`
+     - `FEATURE_SPEC`
+     - Optionally capture `IMPL_PLAN` and `TASKS` for future chained flows.
+   - If JSON parsing fails, abort and instruct the user to re-run `/speckit.specify` or verify the feature branch environment.
+   - When shell-escaping single quotes in arguments such as `I'm Groot`, use safe escaping like `'I'\''m Groot'`, or prefer double quotes when possible.
+
+2. Load the current spec file and perform a structured ambiguity and coverage scan. For each category below, classify it internally as Clear, Partial, or Missing. Build an internal coverage map for prioritization. Do not output the raw map unless no questions will be asked.
+
+   Functional Scope and Behavior:
+   - Core user goals and success criteria
+   - Explicit out-of-scope declarations
+   - User roles and persona differentiation
+
+   Domain and Data Model:
+   - Entities, attributes, relationships
+   - Identity and uniqueness rules
+   - Lifecycle and state transitions
+   - Data volume and scale assumptions
+
+   Interaction and UX Flow:
+   - Critical user journeys and sequences
+   - Error, empty, and loading states
+   - Accessibility or localization notes
+
+   Non-Functional Quality Attributes:
+   - Performance targets such as latency and throughput
+   - Scalability expectations and limits
+   - Reliability and availability expectations
+   - Observability requirements including logs, metrics, and traces
+   - Security and privacy assumptions
+   - Compliance or regulatory constraints
+
+   Integration and External Dependencies:
+   - External services and APIs and their failure modes
+   - Data import and export formats
+   - Protocol and versioning assumptions
+
+   Edge Cases and Failure Handling:
+   - Negative scenarios
+   - Rate limiting and throttling
+   - Conflict resolution such as concurrent edits
+
+   Constraints and Tradeoffs:
+   - Technical constraints such as language, storage, hosting
+   - Explicit tradeoffs or rejected alternatives
+
+   Terminology and Consistency:
+   - Canonical glossary terms
+   - Avoided synonyms and deprecated terms
+
+   Completion Signals:
+   - Acceptance criteria testability
+   - Measurable Definition of Done indicators
+
+   Miscellaneous and Placeholders:
+   - TODO markers and unresolved decisions
+   - Ambiguous adjectives such as `robust` or `intuitive` without quantification
+
+   For each category marked Partial or Missing, create an internal candidate question unless:
+   - the clarification would not materially change implementation or validation strategy, or
+   - the issue is better deferred to planning.
+
+3. Generate an internal prioritized queue of candidate clarification questions.
+   - Maximum 5 total questions across the whole session.
+   - Do not output all questions at once.
+   - Each question must be answerable either by:
+     - a short multiple-choice selection with 2 to 5 distinct, mutually exclusive options, or
+     - a one-word or short-phrase answer, explicitly constrained to `<=5 words`.
+   - Only include questions whose answers materially affect architecture, data modeling, task decomposition, test design, UX behavior, operational readiness, or compliance validation.
+   - Balance coverage across high-impact unresolved categories.
+   - Exclude already answered questions, trivial stylistic preferences, or plan-level execution details unless they block correctness.
+   - Prefer clarifications that reduce downstream rework risk or prevent misaligned acceptance tests.
+   - If more than 5 categories remain unresolved, select the top 5 using an impact-times-uncertainty heuristic.
+
+4. Run a sequential questioning loop.
+   - Present exactly one question at a time.
+   - Never reveal future queued questions in advance.
+   - Stop asking when:
+     - all critical ambiguities are resolved,
+     - the user signals completion such as `done`, `good`, `no more`, `stop`, or `proceed`, or
+     - 5 questions have been asked.
+   - If no valid questions exist at the start, immediately report that there are no critical ambiguities.
+
+   For multiple-choice questions:
+   - Analyze all options and determine the most suitable option using:
+     - best practices for the project type,
+     - common patterns in similar implementations,
+     - risk reduction across security, performance, and maintainability,
+     - alignment with explicit project goals or constraints visible in the spec.
+   - Present the recommendation prominently using this exact format:
+     `**Recommended:** Option [X] - <reasoning>`
+   - Then render all options in a Markdown table using this structure:
+
+     | Option | Description |
+     |--------|-------------|
+     | A | <Option A description> |
+     | B | <Option B description> |
+     | C | <Option C description> |
+     | Short | Provide a different short answer (<=5 words) |
+
+     Include options D or E only when needed. Include the `Short` row only when a free-form alternative is appropriate.
+   - After the table, add this exact guidance:
+     `You can reply with the option letter (e.g., "A"), accept the recommendation by saying "yes" or "recommended", or provide your own short answer.`
+
+   For short-answer questions:
+   - Provide a suggested answer based on context and best practices using this exact format:
+     `**Suggested:** <your proposed answer> - <brief reasoning>`
+   - Then add this exact guidance:
+     `Format: Short answer (<=5 words). You can accept the suggestion by saying "yes" or "suggested", or provide your own answer.`
+
+   After the user answers:
+   - If the user replies with `yes`, `recommended`, or `suggested`, use your previously stated recommendation or suggestion as the accepted answer.
+   - Otherwise validate that the answer maps to one option or fits the `<=5 words` limit.
+   - If ambiguous, ask for a quick disambiguation. This remains part of the same question and does not count as a new question.
+   - Once the answer is satisfactory, record it in working memory and integrate it immediately.
+
+5. After each accepted answer, integrate it into the spec incrementally.
+   - Maintain the loaded spec and raw file contents in memory.
+   - On the first accepted answer in the session:
+     - ensure a `## Clarifications` section exists,
+     - create it just after the highest-level contextual or overview section if missing,
+     - under it, ensure a `### Session YYYY-MM-DD` heading exists for the current date.
+   - Append exactly one bullet per accepted answer using this exact format:
+     `- Q: <question> → A: <final answer>`
+   - Immediately apply the clarification to the most appropriate section:
+     - Functional ambiguity: update or add a bullet in Functional Requirements.
+     - User interaction or actor distinction: update User Stories or an Actors subsection.
+     - Data shape or entities: update Data Model with fields, types, relationships, and constraints while preserving ordering.
+     - Non-functional constraint: add or modify measurable criteria in Success Criteria > Measurable Outcomes.
+     - Edge case or negative flow: add a new bullet under Edge Cases or Error Handling.
+     - Terminology conflict: normalize the canonical term across the spec; retain the prior term once only if needed as `(formerly referred to as "X")`.
+   - If a clarification invalidates an earlier ambiguous statement, replace the obsolete statement instead of duplicating it.
+   - Save the spec file after each integration using an atomic overwrite.
+   - Preserve formatting, heading hierarchy, and unrelated section order.
+   - Keep inserted clarifications minimal and testable.
+
+6. Validate after each write and again at the end.
+   - The clarifications session contains exactly one bullet per accepted answer, with no duplicates.
+   - Total accepted questions is at most 5.
+   - Updated sections do not retain the vague placeholders that the accepted answer was intended to resolve.
+   - No contradictory earlier statement remains.
+   - Markdown structure stays valid.
+   - The only new headings you may introduce are:
+     - `## Clarifications`
+     - `### Session YYYY-MM-DD`
+   - Terminology stays consistent across updated sections.
+
+7. Write the updated spec back to `FEATURE_SPEC`.
+
+8. At completion, report all of the following:
+   - number of questions asked and answered,
+   - path to the updated spec,
+   - sections touched,
+   - a coverage summary table listing each taxonomy category with one of these statuses:
+     - Resolved
+     - Deferred
+     - Clear
+     - Outstanding
+   - whether the user should proceed to `/speckit.plan` or run `/speckit.clarify` again later post-plan when Deferred or Outstanding items remain,
+   - the suggested next command.
+
+Behavior rules:
+- If no meaningful ambiguities are found, or all potential questions are low impact, respond exactly with: `No critical ambiguities detected worth formal clarification.` and suggest proceeding.
+- If the spec file is missing, instruct the user to run `/speckit.specify` first. Do not create a new spec here.
+- Never exceed 5 total asked questions. Clarification retries for the same question do not count as new questions.
+- Avoid speculative tech stack questions unless their absence blocks functional clarity.
+- Respect early termination signals immediately.
+- If no questions are asked because coverage is complete, output a compact coverage summary showing all categories as Clear and suggest advancing.
+- If the question quota is reached while high-impact issues remain unresolved, flag them under Deferred with rationale.
+'''

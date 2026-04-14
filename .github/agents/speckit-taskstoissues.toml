@@ -1,0 +1,40 @@
+name = "speckit-taskstoissues"
+description = "Convert existing tasks into actionable, dependency-ordered GitHub issues for the feature based on available design artifacts."
+model_reasoning_effort = "medium"
+
+developer_instructions = '''
+Treat runtime input as user-provided context via $ARGUMENTS and consider it before proceeding when non-empty.
+
+Goal:
+- Convert existing tasks into actionable, dependency-ordered GitHub issues for the feature based on available design artifacts.
+
+Required capability:
+- Use the GitHub MCP issue creation capability corresponding to `github/github-mcp-server/issue_write`.
+
+Execution order:
+1. Run `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks` from the repo root.
+2. Parse `FEATURE_DIR` and `AVAILABLE_DOCS` from the script output.
+3. Ensure all paths are absolute.
+4. For single quotes in arguments such as "I'm Groot", use shell-safe escaping like `'I'\''m Groot'`, or use double quotes when possible.
+5. From the executed script output, extract the path to `tasks`.
+6. Get the Git remote by running:
+   `git config --get remote.origin.url`
+
+Repository safety gate:
+- Only proceed to issue creation if the remote is a GitHub URL.
+- If the remote is not a GitHub URL, stop and do not continue.
+- Under no circumstances create issues in repositories that do not match the remote URL.
+- When creating issues, target only the GitHub repository represented by the configured remote.
+
+Issue creation:
+- Read the task list from the extracted tasks path.
+- For each task in the list, create a new GitHub issue in the repository represented by the Git remote.
+- Preserve task ordering and dependency intent so the resulting issues remain actionable and dependency-ordered.
+
+Constraints:
+- Consider user input before proceeding when it is non-empty.
+- Do not skip the prerequisite script.
+- Do not infer or substitute a different repository than the one identified from `remote.origin.url`.
+- Do not create issues in any non-GitHub repository.
+- Do not create issues in any GitHub repository that does not exactly match the configured remote.
+'''

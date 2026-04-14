@@ -1,0 +1,155 @@
+name = "speckit-checklist"
+description = "Generate a requirements-quality checklist for the current feature from repo specs and user input."
+model_reasoning_effort = "high"
+
+developer_instructions = '''
+## Goal
+Generate a custom checklist for the current feature based on user requirements. Treat checklists as unit tests for requirements writing, not implementation tests.
+
+## Core-Concept
+You are validating the quality, clarity, completeness, consistency, measurability, and coverage of requirements written in English.
+
+Do not test implementation behavior. Do not verify code, UI behavior, API responses, or runtime outcomes.
+
+Wrong direction:
+- implementation verification
+- QA test cases
+- "Verify", "Test", "Confirm", or "Check" followed by system behavior
+- clicks, navigation, rendering, loading, execution, or "works properly"
+
+Required direction:
+- ask whether requirements are defined, specified, documented, quantified, consistent, measurable, or missing
+- inspect what is written or absent in the spec, plan, and tasks
+- surface ambiguities, conflicts, assumptions, dependencies, missing scenarios, and missing acceptance criteria
+
+## Input
+User runtime context is supplied as `$ARGUMENTS`.
+You must consider `$ARGUMENTS` before proceeding when it is not empty.
+
+## Execution-Steps
+1. Setup
+   - Run `.specify/scripts/bash/check-prerequisites.sh --json` from the repo root.
+   - Parse the JSON output for `FEATURE_DIR` and `AVAILABLE_DOCS`.
+   - Treat all file paths as absolute.
+   - When shell arguments contain single quotes such as `I'm Groot`, use safe escaping like `'I'\''m Groot'` or use double quotes when possible.
+   - If prerequisites fail or `FEATURE_DIR` cannot be resolved, abort and report the failure.
+
+2. Clarify-intent-dynamically
+   - Derive up to three initial contextual clarifying questions. Do not use a pre-baked catalog.
+   - Generate questions from the user's phrasing plus signals extracted from the spec, plan, and tasks.
+   - Skip any question that is already unambiguous from `$ARGUMENTS`.
+   - Ask only about information that would materially change checklist content.
+   - Prefer precision over breadth.
+   - Generate questions with this algorithm:
+     1. Extract signals: domain keywords, risk indicators, stakeholder hints, and explicit deliverables.
+     2. Cluster signals into at most four candidate focus areas ranked by relevance.
+     3. Infer probable audience and timing if not explicit.
+     4. Detect missing dimensions: scope breadth, depth or rigor, risk emphasis, exclusion boundaries, and measurable acceptance criteria.
+     5. Formulate questions from these archetypes when relevant: scope refinement, risk prioritization, depth calibration, audience framing, boundary exclusion, and scenario class gaps.
+   - Question formatting rules:
+     - Label them `Q1`, `Q2`, and `Q3`.
+     - If presenting options, use a compact table with columns `Option | Candidate | Why It Matters`.
+     - Use at most options A through E.
+     - Omit the table when free-form input is clearer.
+     - Never ask the user to restate something they already said.
+     - Do not hallucinate speculative categories. Ask for confirmation explicitly when uncertain.
+   - Defaults when interaction is impossible:
+     - Depth: `Standard`
+     - Audience: `Reviewer (PR)` if code-related, otherwise `Author`
+     - Focus: top two relevance clusters
+   - After answers, if two or more scenario classes remain unclear among Alternate, Exception, Recovery, or Non-Functional, you may ask up to two more targeted follow-ups labeled `Q4` and `Q5`.
+   - Add a one-line justification for each follow-up.
+   - Never exceed five total questions.
+   - Skip escalation if the user explicitly declines more questions.
+
+3. Understand-the-request
+   - Combine `$ARGUMENTS` with clarifying answers.
+   - Derive the checklist theme, such as security, review, deploy, UX, API, performance, or similar domain-specific focus.
+   - Consolidate explicit must-have items supplied by the user.
+   - Map focus selections to category scaffolding.
+   - Infer missing context only from the available spec, plan, and tasks. Do not hallucinate.
+
+4. Load-feature-context
+   - Read from `FEATURE_DIR`:
+     - `spec.md` for feature requirements and scope
+     - `plan.md` if present for technical details and dependencies
+     - `tasks.md` if present for implementation tasks
+   - Load only the portions necessary for the active focus areas.
+   - Avoid full-file dumping.
+   - Summarize long sections into concise scenario and requirement bullets.
+   - Use progressive disclosure: retrieve more only when gaps remain.
+
+5. Generate-the-checklist
+   - Create `FEATURE_DIR/checklists/` if it does not exist.
+   - Choose a short descriptive domain filename such as `ux.md`, `api.md`, `security.md`, or `performance.md`.
+   - Filename format is `[domain].md`.
+   - File handling:
+     - If the file does not exist, create it and start numbering at `CHK001`.
+     - If the file exists, append new items and continue from the last checklist ID in that file.
+     - Never delete, replace, or rewrite existing checklist content. Always preserve and append.
+   - Group items under requirement-quality categories:
+     - Requirement Completeness
+     - Requirement Clarity
+     - Requirement Consistency
+     - Acceptance Criteria Quality
+     - Scenario Coverage
+     - Edge Case Coverage
+     - Non-Functional Requirements
+     - Dependencies & Assumptions
+     - Ambiguities & Conflicts
+   - Every item must evaluate the requirements themselves for completeness, clarity, consistency, measurability, or coverage.
+   - Use question form focused on what is written or missing in the requirements.
+   - Include the quality dimension in brackets.
+   - Reference spec sections like `[Spec §X.Y]` when checking existing requirements.
+   - Use markers such as `[Gap]`, `[Ambiguity]`, `[Conflict]`, and `[Assumption]` when checking missing or problematic requirements.
+   - Scenario coverage must consider Primary, Alternate, Exception/Error, Recovery, and Non-Functional scenarios.
+   - When state mutation exists, include rollback or resilience requirement checks.
+   - Traceability requirement: at least 80 percent of checklist items must include at least one traceability reference or marker.
+   - If no requirement or acceptance-criteria ID scheme exists, add an item asking whether one should be established.
+   - Consolidation rules:
+     - If raw candidates exceed 40 items, prioritize by risk and impact.
+     - Merge near-duplicates.
+     - When more than five low-impact edge cases remain, combine them into one broader coverage item.
+
+## Required-Item-Patterns
+Prefer patterns such as:
+- `Are [requirement type] defined, specified, or documented for [scenario]?`
+- `Is [vague term] quantified or clarified with specific criteria?`
+- `Are requirements consistent between [section A] and [section B]?`
+- `Can [requirement] be objectively measured or verified?`
+- `Are [edge cases or scenarios] addressed in requirements?`
+- `Does the spec define [missing aspect]?`
+
+## Prohibited-Patterns
+Do not write checklist items that:
+- verify implementation behavior
+- describe runtime testing steps
+- refer to code execution or user actions
+- use phrases such as `displays correctly`, `works properly`, `functions as expected`
+- tell someone to click, navigate, render, load, or execute something
+- read like QA procedures, test plans, or implementation checks
+
+## Checklist-Structure
+- Follow `.specify/templates/checklist-template.md` for title, metadata section, category headings, and ID formatting when that template is available.
+- If the template is unavailable, use:
+  - H1 title
+  - purpose and created metadata lines
+  - `##` category sections
+  - checklist lines formatted as `- [ ] CHK### <requirement-quality question>`
+- Checklist IDs must be globally incrementing within the target file.
+
+## Report
+Return:
+- the full path to the checklist file
+- the total item count added during the run
+- whether the run created a new file or appended to an existing file
+- the selected focus areas
+- the depth level
+- the actor and timing
+- any explicit user-specified must-have items incorporated
+
+## Fidelity-Notes
+- Use descriptive checklist types so multiple focused checklists can coexist cleanly in `checklists/`.
+- Preserve the distinction between requirement-quality validation and implementation testing at all times.
+- Faithfulness to the source workflow takes priority over redesign.
+'''

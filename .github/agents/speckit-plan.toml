@@ -1,0 +1,165 @@
+name = "speckit-plan"
+description = "Execute the implementation planning workflow using the plan template to generate design artifacts."
+model_reasoning_effort = "high"
+nickname_candidates = ["plan", "planning"]
+
+developer_instructions = '''
+Goal:
+Execute the implementation planning workflow using the plan template to generate design artifacts.
+
+Runtime input:
+- Treat `$ARGUMENTS` as user-provided runtime context.
+- You MUST consider `$ARGUMENTS` before proceeding when it is not empty.
+
+Pre-execution hooks:
+- Before planning, check whether `.specify/extensions.yml` exists in the project root.
+- If it exists, read it and inspect `hooks.before_plan`.
+- If the YAML is invalid or cannot be parsed, skip hook checking silently and continue normally.
+- Ignore hooks where `enabled` is explicitly `false`.
+- Treat hooks without an `enabled` field as enabled by default.
+- Do not interpret or evaluate hook `condition` expressions.
+- A hook is executable only when `condition` is missing, null, or empty.
+- If a hook defines a non-empty `condition`, skip it and leave condition evaluation to the HookExecutor implementation.
+- For each executable hook, output exactly one of the following blocks based on `optional`:
+
+Optional pre-hook:
+## Extension Hooks
+
+**Optional Pre-Hook**: {extension}
+Command: `/{command}`
+Description: {description}
+
+Prompt: {prompt}
+To execute: `/{command}`
+
+Mandatory pre-hook:
+## Extension Hooks
+
+**Automatic Pre-Hook**: {extension}
+Executing: `/{command}`
+EXECUTE_COMMAND: {command}
+
+Wait for the result of the hook command before proceeding to the Outline.
+
+- If no hooks are registered, or `.specify/extensions.yml` does not exist, skip silently.
+
+Execution flow:
+1. Setup
+- Run `.specify/scripts/bash/setup-plan.sh --json` from the repo root.
+- Parse JSON output for `FEATURE_SPEC`, `IMPL_PLAN`, `SPECS_DIR`, and `BRANCH`.
+- All paths must be absolute.
+- For single quotes in arguments such as `I'm Groot`, use escaping like:
+  `'I'\\''m Groot'`
+  or use double quotes when possible.
+
+2. Load context
+- Read `FEATURE_SPEC`.
+- Read `.specify/memory/constitution.md`.
+- Load the `IMPL_PLAN` template that has already been copied.
+
+3. Execute the planning workflow using the structure in `IMPL_PLAN`
+- Fill the Technical Context section.
+- Mark unknown values as `NEEDS CLARIFICATION`.
+- Fill the Constitution Check section from the constitution.
+- Evaluate gates and raise `ERROR` when violations are unjustified.
+- Phase 0: generate `research.md` and resolve all `NEEDS CLARIFICATION`.
+- Phase 1: generate `data-model.md`, `contracts/`, and `quickstart.md`.
+- Phase 1: update agent context by running the agent script.
+- Re-evaluate the Constitution Check after design work.
+
+4. Stop and report
+- End after Phase 2 planning.
+- Report the branch, `IMPL_PLAN` path, and generated artifacts.
+
+5. Post-execution hooks
+- After reporting, check whether `.specify/extensions.yml` exists in the project root.
+- If it exists, read it and inspect `hooks.after_plan`.
+- If the YAML is invalid or cannot be parsed, skip hook checking silently and continue normally.
+- Ignore hooks where `enabled` is explicitly `false`.
+- Treat hooks without an `enabled` field as enabled by default.
+- Do not interpret or evaluate hook `condition` expressions.
+- A hook is executable only when `condition` is missing, null, or empty.
+- If a hook defines a non-empty `condition`, skip it and leave condition evaluation to the HookExecutor implementation.
+- For each executable hook, output exactly one of the following blocks based on `optional`:
+
+Optional post-hook:
+## Extension Hooks
+
+**Optional Hook**: {extension}
+Command: `/{command}`
+Description: {description}
+
+Prompt: {prompt}
+To execute: `/{command}`
+
+Mandatory post-hook:
+## Extension Hooks
+
+**Automatic Hook**: {extension}
+Executing: `/{command}`
+EXECUTE_COMMAND: {command}
+
+- If no hooks are registered, or `.specify/extensions.yml` does not exist, skip silently.
+
+Phase 0: Outline and Research
+1. Extract unknowns from the Technical Context.
+- For each `NEEDS CLARIFICATION`, create a research task.
+- For each dependency, create a best-practices task.
+- For each integration, create a patterns task.
+
+2. Generate and dispatch research agents using this pattern:
+
+For each unknown in Technical Context:
+  Task: "Research {unknown} for {feature context}"
+For each technology choice:
+  Task: "Find best practices for {tech} in {domain}"
+
+3. Consolidate findings in `research.md` using this exact format:
+- Decision: [what was chosen]
+- Rationale: [why chosen]
+- Alternatives considered: [what else evaluated]
+
+Phase 0 output:
+- `research.md` with all `NEEDS CLARIFICATION` resolved.
+
+Phase 1: Design and Contracts
+Prerequisite:
+- `research.md` must be complete.
+
+1. Extract entities from the feature spec into `data-model.md`.
+- Include entity name, fields, and relationships.
+- Include validation rules from requirements.
+- Include state transitions when applicable.
+
+2. Define interface contracts when the project has external interfaces.
+- Write them under `/contracts/`.
+- Identify interfaces exposed to users or other systems.
+- Document the contract format appropriate to the project type.
+- Examples include public APIs for libraries, command schemas for CLI tools, endpoints for web services, grammars for parsers, and UI contracts for applications.
+- Skip this step when the project is purely internal, such as build scripts or one-off tools.
+
+3. Update agent context
+- Run `.specify/scripts/bash/update-agent-context.sh copilot`.
+- These scripts detect which AI agent is in use.
+- Update the appropriate agent-specific context file.
+- Add only new technology from the current plan.
+- Preserve manual additions between markers.
+
+Phase 1 output:
+- `data-model.md`
+- `/contracts/*`
+- `quickstart.md`
+- the agent-specific context file
+
+Downstream handoffs:
+- When the user requests task generation after planning, hand off to `speckit.tasks` with the prompt:
+  `Break the plan into tasks`
+- Preserve the intent of `send: true` by sending the current planning context and generated artifacts with that handoff.
+- When the user requests checklist generation after planning, hand off to `speckit.checklist` with the prompt:
+  `Create a checklist for the following domain...`
+
+Hard rules:
+- Use absolute paths.
+- Raise `ERROR` on gate failures.
+- Raise `ERROR` on unresolved clarifications.
+'''
