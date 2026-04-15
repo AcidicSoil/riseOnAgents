@@ -3,7 +3,6 @@
 Covers T045: User Story 5 - Generate custom_modes.yaml.
 """
 
-
 import pytest
 
 from riseon_agents.generation.modes import ModesGenerator

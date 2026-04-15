@@ -3,6 +3,7 @@
 Implements T027-T030: User Story 1 - View Agent Hierarchy.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -84,7 +85,7 @@ class AgentTreeNode:
         return f"{icon} {self.label}"
 
 
-class AgentTree(Tree):
+class AgentTree(Tree[AgentTreeNode | None]):
     """Tree widget for displaying agent hierarchy.
 
     Extends Textual's Tree widget to provide agent-specific
@@ -97,11 +98,11 @@ class AgentTree(Tree):
         width: 100%;
         height: 100%;
     }
-    
+
     AgentTree > .tree--cursor {
         background: $surface-darken-1;
     }
-    
+
     AgentTree > .tree--highlight {
         background: $surface-darken-2;
     }
@@ -113,13 +114,13 @@ class AgentTree(Tree):
         ("A", "deselect_all", "Deselect All"),
     ]
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the agent tree."""
         super().__init__("Agents", *args, **kwargs)
         self.root.expand()
-        self._on_selection_changed: callable | None = None
+        self._on_selection_changed: Callable[[], None] | None = None
 
-    def set_on_selection_changed(self, callback: callable) -> None:
+    def set_on_selection_changed(self, callback: Callable[[], None]) -> None:
         """Set callback for when selection changes.
 
         Args:
@@ -138,19 +139,19 @@ class AgentTree(Tree):
         Args:
             agents: List of PrimaryAgent objects to display.
         """
-        self.remove_children(self.root)
+        self._clear_children(self.root)
 
         for agent in agents:
             self._add_primary_agent(agent)
 
-    def _add_primary_agent(self, agent: PrimaryAgent) -> TreeNode:
+    def _add_primary_agent(self, agent: PrimaryAgent) -> TreeNode[AgentTreeNode | None]:
         """Add a Primary Agent node to the tree.
 
         Args:
             agent: The PrimaryAgent to add.
 
         Returns:
-            The created TreeNode.
+            The created TreeNode[AgentTreeNode | None].
         """
         # Create node data
         has_warnings = hasattr(agent, "warnings") and bool(agent.warnings)
@@ -192,16 +193,18 @@ class AgentTree(Tree):
 
         return node
 
-    def _add_subagent(self, parent: TreeNode, subagent: Subagent, parent_name: str) -> TreeNode:
+    def _add_subagent(
+        self, parent: TreeNode[AgentTreeNode | None], subagent: Subagent, parent_name: str
+    ) -> TreeNode[AgentTreeNode | None]:
         """Add a Subagent node under a parent.
 
         Args:
-            parent: Parent TreeNode.
+            parent: Parent TreeNode[AgentTreeNode | None].
             subagent: The Subagent to add.
             parent_name: Name of the parent agent.
 
         Returns:
-            The created TreeNode.
+            The created TreeNode[AgentTreeNode | None].
         """
         node_data = AgentTreeNode(
             id=f"{parent_name}/{subagent.name}",
@@ -212,15 +215,17 @@ class AgentTree(Tree):
 
         return parent.add(node_data.get_label(), data=node_data)
 
-    def _add_rule(self, parent: TreeNode, rule: Rule) -> TreeNode:
+    def _add_rule(
+        self, parent: TreeNode[AgentTreeNode | None], rule: Rule
+    ) -> TreeNode[AgentTreeNode | None]:
         """Add a Rule node under a parent.
 
         Args:
-            parent: Parent TreeNode.
+            parent: Parent TreeNode[AgentTreeNode | None].
             rule: The Rule to add.
 
         Returns:
-            The created TreeNode.
+            The created TreeNode[AgentTreeNode | None].
         """
         node_data = AgentTreeNode(
             id=rule.name,
@@ -230,15 +235,17 @@ class AgentTree(Tree):
 
         return parent.add(node_data.get_label(), data=node_data)
 
-    def _add_skill(self, parent: TreeNode, skill: Skill) -> TreeNode:
+    def _add_skill(
+        self, parent: TreeNode[AgentTreeNode | None], skill: Skill
+    ) -> TreeNode[AgentTreeNode | None]:
         """Add a Skill node under a parent.
 
         Args:
-            parent: Parent TreeNode.
+            parent: Parent TreeNode[AgentTreeNode | None].
             skill: The Skill to add.
 
         Returns:
-            The created TreeNode.
+            The created TreeNode[AgentTreeNode | None].
         """
         node_data = AgentTreeNode(
             id=skill.name,
@@ -248,27 +255,26 @@ class AgentTree(Tree):
 
         return parent.add(node_data.get_label(), data=node_data)
 
-    def remove_children(self, node: TreeNode) -> None:
+    def _clear_children(self, node: TreeNode[AgentTreeNode | None]) -> None:
         """Remove all children from a node.
 
         Args:
             node: The node to clear.
         """
-        # Textual's Tree doesn't have a direct clear method
-        # We need to remove children one by one
+        # Textual's Tree doesn't have a direct clear method.
         while node.children:
             child = node.children[-1]
-            node.remove_child(child)
+            node.remove_child(child)  # type: ignore[attr-defined]
 
-    def select_node(self, node: TreeNode) -> None:
+    def select_node(self, node: TreeNode[AgentTreeNode | None] | None) -> None:
         """Select a node and scroll to make it visible.
 
         Args:
             node: The node to select.
         """
-        # Call parent class's select_node method
-        Tree.select_node(self, node)
-        self.scroll_to_node(node)
+        super().select_node(node)
+        if node is not None:
+            self.scroll_to_node(node)
 
     def action_cursor_up(self) -> None:
         """Move cursor up."""
@@ -300,7 +306,7 @@ class AgentTree(Tree):
         self.deselect_all()
         self._notify_selection_changed()
 
-    def toggle_selection_with_propagation(self, node: TreeNode) -> None:
+    def toggle_selection_with_propagation(self, node: TreeNode[AgentTreeNode | None]) -> None:
         """T039, T040: Toggle selection and propagate to children.
 
         Args:
@@ -322,7 +328,9 @@ class AgentTree(Tree):
         # Update the node's label to reflect new state
         self._update_node_label(node)
 
-    def _propagate_selection_to_children(self, node: TreeNode, state: SelectionState) -> None:
+    def _propagate_selection_to_children(
+        self, node: TreeNode[AgentTreeNode | None], state: SelectionState
+    ) -> None:
         """T040: Propagate selection state to all children recursively.
 
         Args:
@@ -336,7 +344,7 @@ class AgentTree(Tree):
             # Always recurse to grandchildren, even if current child has no data
             self._propagate_selection_to_children(child, state)
 
-    def _update_parent_state_recursive(self, node: TreeNode) -> None:
+    def _update_parent_state_recursive(self, node: TreeNode[AgentTreeNode | None]) -> None:
         """T041: Update parent state based on children.
 
         Args:
@@ -354,19 +362,23 @@ class AgentTree(Tree):
         # Continue up the tree
         self._update_parent_state_recursive(parent)
 
-    def _find_parent_node(self, node: TreeNode) -> TreeNode | None:
+    def _find_parent_node(
+        self, node: TreeNode[AgentTreeNode | None]
+    ) -> TreeNode[AgentTreeNode | None] | None:
         """Find the parent of a given node.
 
         Args:
             node: The child node.
 
         Returns:
-            The parent TreeNode or None.
+            The parent TreeNode[AgentTreeNode | None] or None.
         """
         # Search from root to find parent
         return self._find_parent_recursive(self.root, node)
 
-    def _find_parent_recursive(self, current: TreeNode, target: TreeNode) -> TreeNode | None:
+    def _find_parent_recursive(
+        self, current: TreeNode[AgentTreeNode | None], target: TreeNode[AgentTreeNode | None]
+    ) -> TreeNode[AgentTreeNode | None] | None:
         """Recursively search for parent of target node.
 
         Args:
@@ -374,7 +386,7 @@ class AgentTree(Tree):
             target: The node to find parent for.
 
         Returns:
-            The parent TreeNode or None.
+            The parent TreeNode[AgentTreeNode | None] or None.
         """
         for child in current.children:
             if child is target:
@@ -384,7 +396,7 @@ class AgentTree(Tree):
                 return result
         return None
 
-    def _calculate_partial_state(self, node: TreeNode) -> None:
+    def _calculate_partial_state(self, node: TreeNode[AgentTreeNode | None]) -> None:
         """T041: Calculate if parent should show PARTIAL state.
 
         Args:
@@ -394,15 +406,19 @@ class AgentTree(Tree):
             return
 
         # Get all descendant nodes with data (not just direct children)
-        descendants = []
+        descendants: list[TreeNode[AgentTreeNode | None]] = []
         self._collect_descendants_with_data(node, descendants, skip_self=True)
 
         if not descendants:
             return
 
         # Check states
-        selected_count = sum(1 for n in descendants if n.data.state == SelectionState.SELECTED)
-        unselected_count = sum(1 for n in descendants if n.data.state == SelectionState.UNSELECTED)
+        selected_count = sum(
+            n.data is not None and n.data.state == SelectionState.SELECTED for n in descendants
+        )
+        unselected_count = sum(
+            n.data is not None and n.data.state == SelectionState.UNSELECTED for n in descendants
+        )
         total = len(descendants)
 
         if selected_count == total:
@@ -413,7 +429,10 @@ class AgentTree(Tree):
             node.data.state = SelectionState.PARTIAL
 
     def _collect_descendants_with_data(
-        self, node: TreeNode, result: list, skip_self: bool = False
+        self,
+        node: TreeNode[AgentTreeNode | None],
+        result: list[TreeNode[AgentTreeNode | None]],
+        skip_self: bool = False,
     ) -> None:
         """Collect all descendant nodes that have data.
 
@@ -428,7 +447,7 @@ class AgentTree(Tree):
         for child in node.children:
             self._collect_descendants_with_data(child, result, skip_self=False)
 
-    def _update_parent_state(self, node: TreeNode) -> None:
+    def _update_parent_state(self, node: TreeNode[AgentTreeNode | None]) -> None:
         """Update parent state for a single node (used in tests).
 
         Args:
@@ -436,7 +455,7 @@ class AgentTree(Tree):
         """
         self._update_parent_state_recursive(node)
 
-    def _update_node_label(self, node: TreeNode) -> None:
+    def _update_node_label(self, node: TreeNode[AgentTreeNode | None]) -> None:
         """Update the visual label of a node to reflect current state.
 
         Args:
@@ -449,7 +468,7 @@ class AgentTree(Tree):
         """Update all node labels in the tree."""
         self._update_labels_recursive(self.root)
 
-    def _update_labels_recursive(self, node: TreeNode) -> None:
+    def _update_labels_recursive(self, node: TreeNode[AgentTreeNode | None]) -> None:
         """Recursively update labels.
 
         Args:
@@ -491,7 +510,7 @@ class AgentTree(Tree):
         """
         return self._count_total_recursive(self.root)
 
-    def _count_total_recursive(self, node: TreeNode) -> int:
+    def _count_total_recursive(self, node: TreeNode[AgentTreeNode | None]) -> int:
         """Recursively count total selectable nodes.
 
         Args:
@@ -508,7 +527,7 @@ class AgentTree(Tree):
             count += self._count_total_recursive(child)
         return count
 
-    def _count_selected_recursive(self, node: TreeNode) -> int:
+    def _count_selected_recursive(self, node: TreeNode[AgentTreeNode | None]) -> int:
         """Recursively count selected nodes.
 
         Args:
@@ -524,20 +543,26 @@ class AgentTree(Tree):
             count += self._count_selected_recursive(child)
         return count
 
-    def scroll_to_node(self, node: TreeNode) -> None:
+    def scroll_to_node(
+        self,
+        node: TreeNode[AgentTreeNode | None],
+        animate: bool = False,
+    ) -> None:
         """Scroll to make a node visible.
 
         Args:
             node: The node to scroll to.
+            animate: Whether to animate the scroll.
         """
-        # Textual's tree should auto-scroll, but we can force it if needed
+        _ = animate
+        # Textual's tree should auto-scroll, but we can force it if needed.
         self.scroll_to_line(self.get_node_line(node))
 
-    def get_node_line(self, node: TreeNode) -> int:
+    def get_node_line(self, _node: TreeNode[AgentTreeNode | None]) -> int:
         """Get the line number for a node.
 
         Args:
-            node: The node to find.
+            _node: The node to find.
 
         Returns:
             The line number (approximate for scrolling).

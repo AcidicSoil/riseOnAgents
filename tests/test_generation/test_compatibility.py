@@ -50,7 +50,7 @@ class TestProviderCompatibilityGeneration:
         assert 'description = "Test agent description"' in toml_content
         assert 'developer_instructions = "# Test Agent Prompt"' in toml_content
         assert 'model = "test-model"' in toml_content
-        assert 'max_turns = 10' in toml_content
+        assert "max_turns = 10" in toml_content
 
     def test_generate_gemini_agent_manifest(self, temp_dir: Path) -> None:
         """Gemini agent manifests should be emitted with markdown frontmatter content."""

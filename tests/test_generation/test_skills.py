@@ -3,8 +3,6 @@
 Covers T048: User Story 5 - Generate skill files.
 """
 
-
-
 from riseon_agents.generation.skills import SkillsGenerator
 from riseon_agents.models.skill import Skill
 

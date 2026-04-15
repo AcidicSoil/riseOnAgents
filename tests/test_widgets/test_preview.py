@@ -123,7 +123,6 @@ class TestPreviewPanel:
 
     def test_panel_has_scrollable_content(self):
         """T060: Test panel content is scrollable (US3-AC4)."""
-        panel = PreviewPanel()
         # Panel should have overflow/scroll capability through CSS
         assert "overflow: auto scroll" in PreviewPanel.DEFAULT_CSS
 

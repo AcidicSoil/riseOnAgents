@@ -104,19 +104,19 @@ class TestKiloCodeGenerator:
         # Track the paths passed to generators
         captured_paths = {}
 
-        def capture_modes(agents, path):
+        def capture_modes(_agents, path):
             captured_paths["modes"] = path
             return MagicMock(error_count=0, files=[])
 
-        def capture_subagents(subagents, path):
+        def capture_subagents(_subagents, path):
             captured_paths["subagents"] = path
             return MagicMock(error_count=0, files=[])
 
-        def capture_rules(rules, path):
+        def capture_rules(_rules, path):
             captured_paths["rules"] = path
             return MagicMock(error_count=0, files=[])
 
-        def capture_skills(skills, path):
+        def capture_skills(_skills, path):
             captured_paths["skills"] = path
             return MagicMock(error_count=0, files=[])
 
@@ -126,7 +126,7 @@ class TestKiloCodeGenerator:
             patch.object(generator.rules_gen, "generate", side_effect=capture_rules),
             patch.object(generator.skills_gen, "generate", side_effect=capture_skills),
         ):
-            result = generator.generate([agent], GenerationLevel.GLOBAL, tmp_path)
+            generator.generate([agent], GenerationLevel.GLOBAL, tmp_path)
 
         # Verify global paths are used (generators get parent dir, not subdirs)
         home = Path.home()
@@ -153,7 +153,7 @@ class TestKiloCodeGenerator:
         global_paths = {}
 
         def make_capture(storage):
-            def capture(agents_or_items, path):
+            def capture(_agents_or_items, path):
                 storage["path"] = path
                 return MagicMock(error_count=0, files=[])
 

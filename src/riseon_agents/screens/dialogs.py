@@ -4,7 +4,6 @@ Implements T033: User Story 1 - Error screens for missing/empty agents folder.
 Implements T078, T079: User Story 6 - Show validation results with file and line info.
 """
 
-
 from textual.app import ComposeResult
 from textual.containers import Container, Vertical
 from textual.screen import ModalScreen
@@ -13,7 +12,7 @@ from textual.widgets import Button, Label, Static
 from riseon_agents.models.generation import ValidationError
 
 
-class ErrorDialog(ModalScreen):
+class ErrorDialog(ModalScreen[str | None]):
     """Generic error dialog with message and actions.
 
     Attributes:
@@ -26,7 +25,7 @@ class ErrorDialog(ModalScreen):
     ErrorDialog {
         align: center middle;
     }
-    
+
     ErrorDialog > Container {
         width: 60;
         height: auto;
@@ -35,24 +34,24 @@ class ErrorDialog(ModalScreen):
         background: $surface;
         padding: 1 2;
     }
-    
+
     ErrorDialog > Container > Label {
         text-align: center;
         text-style: bold;
         color: $error;
         margin-bottom: 1;
     }
-    
+
     ErrorDialog > Container > Static {
         text-align: center;
         margin-bottom: 1;
     }
-    
+
     ErrorDialog > Container > Vertical {
         height: auto;
         align: center middle;
     }
-    
+
     ErrorDialog > Container > Vertical > Button {
         margin: 0 1;
     }
@@ -62,7 +61,7 @@ class ErrorDialog(ModalScreen):
         self,
         title: str,
         message: str,
-        actions: list[tuple[str, str]] = None,
+        actions: list[tuple[str, str]] | None = None,
     ) -> None:
         """Initialize the error dialog.
 
@@ -110,7 +109,7 @@ class EmptyAgentsDialog(ErrorDialog):
         )
 
 
-class ConfirmDialog(ModalScreen):
+class ConfirmDialog(ModalScreen[str | None]):
     """Confirmation dialog with Yes/No options.
 
     Attributes:
@@ -122,7 +121,7 @@ class ConfirmDialog(ModalScreen):
     ConfirmDialog {
         align: center middle;
     }
-    
+
     ConfirmDialog > Container {
         width: 60;
         height: auto;
@@ -131,23 +130,23 @@ class ConfirmDialog(ModalScreen):
         background: $surface;
         padding: 1 2;
     }
-    
+
     ConfirmDialog > Container > Label {
         text-align: center;
         text-style: bold;
         margin-bottom: 1;
     }
-    
+
     ConfirmDialog > Container > Static {
         text-align: center;
         margin-bottom: 1;
     }
-    
+
     ConfirmDialog > Container > Vertical {
         height: auto;
         align: center middle;
     }
-    
+
     ConfirmDialog > Container > Vertical > Button {
         margin: 0 1;
     }
@@ -167,7 +166,7 @@ class ConfirmDialog(ModalScreen):
     def compose(self) -> ComposeResult:
         """Compose the dialog."""
         with Container():
-            yield Label(self.title)
+            yield Label(self.title or "")
             yield Static(self.message)
 
             with Vertical():
@@ -179,7 +178,7 @@ class ConfirmDialog(ModalScreen):
         self.dismiss(event.button.id)
 
 
-class ResultDialog(ModalScreen):
+class ResultDialog(ModalScreen[str]):
     """Dialog showing generation results with validation.
 
     Implements T078, T079: User Story 6 - Show validation results with file and line info.
@@ -194,7 +193,7 @@ class ResultDialog(ModalScreen):
     ResultDialog {
         align: center middle;
     }
-    
+
     ResultDialog > Container {
         width: 80;
         height: auto;
@@ -203,32 +202,32 @@ class ResultDialog(ModalScreen):
         background: $surface;
         padding: 1 2;
     }
-    
+
     ResultDialog.error > Container {
         border: solid $error;
     }
-    
+
     ResultDialog > Container > Label {
         text-align: center;
         text-style: bold;
         color: $success;
         margin-bottom: 1;
     }
-    
+
     ResultDialog.error > Container > Label {
         color: $error;
     }
-    
+
     ResultDialog > Container > Static.summary {
         margin-bottom: 1;
     }
-    
+
     ResultDialog > Container > Static.errors {
         color: $error;
         margin-bottom: 1;
         max-height: 15;
     }
-    
+
     ResultDialog > Container > Button {
         margin: 1 auto;
     }
@@ -296,6 +295,6 @@ class ResultDialog(ModalScreen):
 
         return "\n".join(lines)
 
-    def on_button_pressed(self, event: Button.Pressed) -> None:
+    def on_button_pressed(self, _event: Button.Pressed) -> None:
         """Handle button press."""
         self.dismiss("ok")

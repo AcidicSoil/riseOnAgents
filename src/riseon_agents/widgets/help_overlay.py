@@ -3,13 +3,15 @@
 Implements T084: User Story - Help System with keyboard shortcuts.
 """
 
+from typing import Any
+
 from textual.app import ComposeResult
 from textual.containers import Container, Grid
 from textual.screen import ModalScreen
 from textual.widgets import Button, Label, Static
 
 
-class HelpOverlay(ModalScreen):
+class HelpOverlay(ModalScreen[None]):
     """Help overlay displaying keyboard shortcuts and usage information.
 
     Shows all available keyboard shortcuts organized by category,
@@ -20,7 +22,7 @@ class HelpOverlay(ModalScreen):
     HelpOverlay {
         align: center middle;
     }
-    
+
     HelpOverlay > Container {
         width: 70;
         height: auto;
@@ -29,37 +31,37 @@ class HelpOverlay(ModalScreen):
         background: $surface;
         padding: 1 2;
     }
-    
+
     HelpOverlay > Container > Label {
         text-align: center;
         text-style: bold;
         margin-bottom: 1;
         color: $primary;
     }
-    
+
     HelpOverlay > Container > Grid {
         grid-size: 2;
         grid-gutter: 1;
         margin-bottom: 1;
     }
-    
+
     HelpOverlay > Container > Grid > Static.key {
         text-style: bold;
         color: $text-accent;
         content-align: right middle;
     }
-    
+
     HelpOverlay > Container > Grid > Static.desc {
         color: $text;
     }
-    
+
     HelpOverlay > Container > Static.category {
         text-style: bold;
         color: $success;
         margin-top: 1;
         margin-bottom: 1;
     }
-    
+
     HelpOverlay > Container > Button {
         margin: 1 auto;
     }
@@ -113,6 +115,7 @@ class HelpOverlay(ModalScreen):
         if event.button.id == "close":
             self.dismiss()
 
-    def action_dismiss(self) -> None:
+    async def action_dismiss(self, result: Any | None = None) -> None:
         """Dismiss the overlay."""
+        _ = result
         self.dismiss()

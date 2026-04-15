@@ -91,16 +91,16 @@ def emit_hermes_identity(
 def _render_codex_agent_toml(agent_profile: AgentProfile) -> str:
     """Render a minimal TOML manifest for a Codex agent profile."""
     lines = [
-        f'name = {_toml_string(agent_profile.name)}',
-        f'description = {_toml_string(agent_profile.description)}',
-        f'developer_instructions = {_toml_string(agent_profile.prompt)}',
+        f"name = {_toml_string(agent_profile.name)}",
+        f"description = {_toml_string(agent_profile.description)}",
+        f"developer_instructions = {_toml_string(agent_profile.prompt)}",
     ]
     if agent_profile.tools:
         lines.append(f"tools = {_toml_list(agent_profile.tools)}")
     if agent_profile.mcp_servers:
         lines.append(f"mcp_servers = {_toml_list(agent_profile.mcp_servers)}")
     if agent_profile.model:
-        lines.append(f'model = {_toml_string(agent_profile.model)}')
+        lines.append(f"model = {_toml_string(agent_profile.model)}")
     if agent_profile.max_turns is not None:
         lines.append(f"max_turns = {agent_profile.max_turns}")
     if agent_profile.temperature is not None:

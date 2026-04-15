@@ -13,7 +13,7 @@ from riseon_agents.screens.main import MainScreen
 from riseon_agents.widgets.help_overlay import HelpOverlay
 
 
-class KiloGeneratorApp(App):
+class KiloGeneratorApp(App[None]):
     """Main application for the Kilo Code Configuration Generator.
 
     This app provides a TUI for viewing agent hierarchies, selecting
@@ -27,7 +27,7 @@ class KiloGeneratorApp(App):
     Screen {
         align: center middle;
     }
-    
+
     #loading {
         text-align: center;
     }
@@ -85,8 +85,12 @@ class KiloGeneratorApp(App):
     def _load_agents_and_show_main(self) -> None:
         """Load agents from repository and display the main screen."""
         try:
+            repository = self.agent_repository
+            if repository is None:
+                raise RuntimeError("Agent repository is not initialized")
+
             # Discover all agents
-            primary_agents = self.agent_repository.discover_agents()
+            primary_agents = repository.discover_agents()
 
             # Create and push main screen
             main_screen = MainScreen()
@@ -109,19 +113,19 @@ class KiloGeneratorApp(App):
                 self._on_error_dismiss,
             )
 
-    def _on_empty_agents_dismiss(self, result: str | None) -> None:
+    def _on_empty_agents_dismiss(self, _result: str | None) -> None:
         """Handle dismiss of empty agents dialog.
 
         Args:
-            result: The button that was pressed.
+            _result: The button that was pressed.
         """
         self.exit()
 
-    def _on_error_dismiss(self, result: str | None) -> None:
+    def _on_error_dismiss(self, _result: str | None) -> None:
         """Handle dismiss of error dialog.
 
         Args:
-            result: The button that was pressed.
+            _result: The button that was pressed.
         """
         self.exit()
 

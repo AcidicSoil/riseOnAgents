@@ -4,6 +4,8 @@ Defines the PrimaryAgent and Subagent dataclasses that represent agent definitio
 parsed from the agents/ folder.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -40,9 +42,9 @@ class PrimaryAgent:
     handoffs: list[str] = field(default_factory=list)  # subagent names
 
     # Children
-    subagents: list["Subagent"] = field(default_factory=list)
-    rules: list["Rule"] = field(default_factory=list)  # type: ignore[name-defined]
-    skills: list["Skill"] = field(default_factory=list)  # type: ignore[name-defined]
+    subagents: list[Subagent] = field(default_factory=list)
+    rules: list[Rule] = field(default_factory=list)
+    skills: list[Skill] = field(default_factory=list)
 
     # Metadata
     source_path: Path | None = None

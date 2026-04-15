@@ -7,6 +7,7 @@ from typing import Any
 
 from rich.syntax import Syntax
 from rich.text import Text
+from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.reactive import reactive
 from textual.widgets import Static
@@ -30,13 +31,13 @@ class PreviewPanel(Vertical):
         height: 100%;
         padding: 1;
     }
-    
+
     PreviewPanel > Static {
         width: 100%;
         height: 100%;
         overflow: auto scroll;
     }
-    
+
     PreviewPanel .placeholder {
         color: $text-muted;
         text-align: center;
@@ -46,14 +47,14 @@ class PreviewPanel(Vertical):
 
     current_preview = reactive("")
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the preview panel."""
         super().__init__(*args, **kwargs)
         self.content_widget: Static | None = None
         self._current_node_type: str | None = None
         self._current_data: Any | None = None
 
-    def compose(self):
+    def compose(self) -> ComposeResult:
         """Compose the preview panel layout."""
         self.content_widget = Static(self._get_placeholder_text(), id="preview-content")
         yield self.content_widget
@@ -138,10 +139,7 @@ class PreviewPanel(Vertical):
             Preview content as YAML string.
         """
         # T072: Show target path based on level
-        if level == GenerationLevel.LOCAL:
-            path_prefix = "./.kilo/"
-        else:
-            path_prefix = "~/.kilocode/"
+        path_prefix = "./.kilo/" if level == GenerationLevel.LOCAL else "~/.kilocode/"
 
         lines = [
             f"# Target: {path_prefix}custom_modes.yaml",
@@ -187,10 +185,7 @@ class PreviewPanel(Vertical):
             Preview content as Markdown/YAML frontmatter string.
         """
         # T072: Show target path based on level
-        if level == GenerationLevel.LOCAL:
-            path_prefix = "./.kilo/"
-        else:
-            path_prefix = "~/.kilocode/"
+        path_prefix = "./.kilo/" if level == GenerationLevel.LOCAL else "~/.kilocode/"
 
         lines = [
             "---",
@@ -229,10 +224,7 @@ class PreviewPanel(Vertical):
             Preview content as string.
         """
         # T072: Show target path based on level
-        if level == GenerationLevel.LOCAL:
-            path_prefix = "./.kilo/"
-        else:
-            path_prefix = "~/.kilocode/"
+        path_prefix = "./.kilo/" if level == GenerationLevel.LOCAL else "~/.kilocode/"
 
         lines = [
             f"# Target: {path_prefix}rules/{rule.filename}",
@@ -256,10 +248,7 @@ class PreviewPanel(Vertical):
             Preview content as string.
         """
         # T072: Show target path based on level
-        if level == GenerationLevel.LOCAL:
-            path_prefix = "./.kilocode/"
-        else:
-            path_prefix = "~/.kilocode/"
+        path_prefix = "./.kilocode/" if level == GenerationLevel.LOCAL else "~/.kilocode/"
 
         lines = [
             f"# Target: {path_prefix}skills/{skill.name}/SKILL.md",
@@ -271,7 +260,7 @@ class PreviewPanel(Vertical):
 
         return "\n".join(lines)
 
-    def _map_permissions_to_groups(self, permissions: dict) -> list[str]:
+    def _map_permissions_to_groups(self, permissions: dict[str, Any]) -> list[str]:
         """Map agent permissions to Kilo Code groups.
 
         Args:

@@ -6,6 +6,7 @@ Implements T056-T057: User Story 5 - Generate action and progress.
 """
 
 from pathlib import Path
+from typing import Any
 
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
@@ -14,13 +15,14 @@ from textual.screen import Screen
 from textual.widgets import Footer, Header, ProgressBar, Static
 
 from riseon_agents.generation.generator import KiloCodeGenerator
-from riseon_agents.models.generation import GenerationLevel
+from riseon_agents.models.agent import PrimaryAgent
+from riseon_agents.models.generation import GenerationLevel, GenerationResult
 from riseon_agents.widgets.agent_tree import AgentTree
 from riseon_agents.widgets.help_overlay import HelpOverlay
 from riseon_agents.widgets.preview import PreviewPanel
 
 
-class MainScreen(Screen):
+class MainScreen(Screen[None]):
     """Main screen with agent tree and preview panels.
 
     Provides a two-panel layout with the agent tree on the left
@@ -31,24 +33,24 @@ class MainScreen(Screen):
     MainScreen {
         layout: horizontal;
     }
-    
+
     #tree-panel {
         width: 40%;
         height: 100%;
         border: solid $primary;
     }
-    
+
     #preview-panel {
         width: 60%;
         height: 100%;
         border: solid $primary;
     }
-    
+
     AgentTree {
         height: 100%;
         width: 100%;
     }
-    
+
     #status-bar {
         height: 1;
         background: $surface-darken-1;
@@ -56,7 +58,7 @@ class MainScreen(Screen):
         padding: 0 1;
         content-align: center middle;
     }
-    
+
     #progress-bar {
         height: 1;
         margin: 0 1;
@@ -116,12 +118,10 @@ class MainScreen(Screen):
             self.agent_tree.focus()
             # Set up callback for selection changes
             self.agent_tree.set_on_selection_changed(self.update_selection_count)
-            # T065: Wire tree focus events to preview updates
-            self.agent_tree.focused_node = None
             # Initial count update
             self.update_selection_count()
 
-    def on_tree_node_highlighted(self, event) -> None:
+    def on_tree_node_highlighted(self, event: Any) -> None:
         """T065: Update preview when tree node is highlighted (focused).
 
         Args:
@@ -152,7 +152,7 @@ class MainScreen(Screen):
             level_str = "Local" if self.generation_level == GenerationLevel.LOCAL else "Global"
             self.status_bar.update(f"Selected: {count}/{total} | Target: {level_str}")
 
-    def watch_generation_level(self, level: GenerationLevel) -> None:
+    def watch_generation_level(self, _level: GenerationLevel) -> None:
         """Update status bar when generation level changes."""
         if self.status_bar:
             self.selected_count = self.selected_count  # Trigger update
@@ -244,7 +244,7 @@ class MainScreen(Screen):
             # Generate directly
             self._do_generate(selected_agents)
 
-    def _do_generate(self, agents: list) -> None:
+    def _do_generate(self, agents: list[PrimaryAgent]) -> None:
         """Perform the actual generation.
 
         Args:
@@ -277,7 +277,7 @@ class MainScreen(Screen):
             if self.progress_bar:
                 self.progress_bar.display = False
 
-    def _get_selected_agents(self) -> list:
+    def _get_selected_agents(self) -> list[PrimaryAgent]:
         """Get list of selected PrimaryAgent objects from tree.
 
         Returns:
@@ -288,14 +288,18 @@ class MainScreen(Screen):
 
         selected = []
         for node in self.agent_tree.root.children:
-            if node.data and node.data.agent and hasattr(node.data.agent, "subagents"):
+            if (
+                node.data
+                and node.data.agent
+                and hasattr(node.data.agent, "subagents")
+                and node.data.state.value >= 2
+            ):
                 # This is a PrimaryAgent
-                if node.data.state.value >= 2:  # SELECTED or PARTIAL
-                    selected.append(node.data.agent)
+                selected.append(node.data.agent)
 
         return selected
 
-    def _create_error_dialog(self, message: str):
+    def _create_error_dialog(self, message: str) -> Any:
         """Create an error dialog.
 
         Args:
@@ -311,7 +315,7 @@ class MainScreen(Screen):
             message=message,
         )
 
-    def _create_confirm_dialog(self, existing_files: list):
+    def _create_confirm_dialog(self, existing_files: list[Path]) -> Any:
         """Create a confirmation dialog for overwrite.
 
         Args:
@@ -331,7 +335,7 @@ class MainScreen(Screen):
             message=f"The following files already exist:\n\n{file_list}\n\nDo you want to overwrite them?",
         )
 
-    def _create_result_dialog(self, result):
+    def _create_result_dialog(self, result: GenerationResult) -> Any:
         """Create a result dialog for generation summary.
 
         Args:
@@ -343,8 +347,8 @@ class MainScreen(Screen):
         from riseon_agents.screens.dialogs import ResultDialog
 
         if result.success:
-            created = len([f for f in result.files if f.status.value == 1])  # CREATED
-            updated = len([f for f in result.files if f.status.value == 2])  # UPDATED
+            created = result.created_count
+            updated = result.updated_count
 
             summary = "Generation completed successfully!\n\n"
             summary += f"Files created: {created}\n"
@@ -361,11 +365,13 @@ class MainScreen(Screen):
                 summary=summary,
                 validation_errors=validation_errors,
             )
-        else:
-            return ResultDialog(
-                title="Generation Failed",
-                summary=f"Generation failed:\n\n{result.error_message}",
-            )
+        error_messages = [file.error_message for file in result.error_files if file.error_message]
+        error_summary = error_messages[0] if error_messages else "Unknown error"
+
+        return ResultDialog(
+            title="Generation Failed",
+            summary=f"Generation failed:\n\n{error_summary}",
+        )
 
     def get_agent_tree(self) -> AgentTree | None:
         """Get the agent tree widget.

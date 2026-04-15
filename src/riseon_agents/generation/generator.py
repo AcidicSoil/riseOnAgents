@@ -49,7 +49,7 @@ class KiloCodeGenerator:
         agents: list[PrimaryAgent],
         level: GenerationLevel,
         base_dir: Path,
-        _overwrite: bool = False,
+        overwrite: bool = False,
     ) -> GenerationResult:
         """Generate all configuration files for the selected agents.
 
@@ -63,6 +63,7 @@ class KiloCodeGenerator:
             GenerationResult with all generated files and status.
         """
         result = GenerationResult()
+        _ = overwrite  # Reserved for overwrite policy compatibility while generators overwrite in place.
         generated_files: list[Path] = []  # T082: Track for cleanup
 
         if not agents:

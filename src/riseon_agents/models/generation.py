@@ -4,6 +4,7 @@ Defines the data structures for configuration file generation including
 target paths, file status tracking, and generation results.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -191,7 +192,7 @@ class GenerationTarget:
         self.rules_dir.mkdir(parents=True, exist_ok=True)
         self.skills_dir.mkdir(parents=True, exist_ok=True)
 
-    def ensure_provider_directories(self, providers: list["ProviderTarget | str"]) -> None:
+    def ensure_provider_directories(self, providers: Sequence["ProviderTarget | str"]) -> None:
         """Create directories for the requested provider targets.
 
         File-like outputs create only their parent directories; directory-like
