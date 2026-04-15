@@ -485,8 +485,10 @@ class AgentRepository:
         return result
 
     def get_project_instructions(self) -> list[ProjectInstructions]:
-        """Return project instruction surfaces for all loaded primary agents."""
-        return [ProjectInstructions.from_primary_agent(agent) for agent in self._agents]
+        """Return repository-wide project instruction surfaces."""
+        if not self._agents:
+            return []
+        return [ProjectInstructions.from_primary_agents(self._agents)]
 
     def get_agent_profiles(self) -> list[AgentProfile]:
         """Return canonical agent profiles for all loaded subagents."""

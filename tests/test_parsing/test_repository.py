@@ -164,11 +164,41 @@ Missing description field.
 
         instructions = repo.get_project_instructions()
 
-        assert len(instructions) >= 1
+        assert len(instructions) == 1
         assert instructions[0].name == "test-primary"
         assert instructions[0].description == "A test primary agent for unit testing"
         assert instructions[0].body
         assert instructions[0].source_path is not None
+
+    def test_get_project_instructions_aggregates_multiple_primary_agents(
+        self, temp_agents_dir: Path
+    ) -> None:
+        """Repository should aggregate multiple primary agents into one project surface."""
+        second_agent_dir = temp_agents_dir / "test-secondary"
+        second_agent_dir.mkdir()
+        (second_agent_dir / "test-secondary.agent.md").write_text(
+            "---\n"
+            "name: test-secondary\n"
+            "description: Secondary test agent\n"
+            "---\n\n"
+            "# Test Secondary Agent\n\n"
+            "Secondary project instructions.\n",
+            encoding="utf-8",
+        )
+
+        repo = AgentRepository(temp_agents_dir)
+        repo.discover()
+
+        instructions = repo.get_project_instructions()
+
+        assert len(instructions) == 1
+        assert instructions[0].name == "project-instructions"
+        assert instructions[0].description == (
+            "Repository-wide instructions aggregated from primary agents"
+        )
+        assert "# Project Instructions" in instructions[0].body
+        assert "## Test Primary" in instructions[0].body
+        assert "## Test Secondary" in instructions[0].body
 
     def test_get_agent_profiles_returns_subagent_profiles(self, agents_fixtures_dir: Path) -> None:
         """Repository should expose canonical agent profiles from subagents."""

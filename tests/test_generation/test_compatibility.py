@@ -1,5 +1,3 @@
-"""Tests for compatibility generation for provider surfaces."""
-
 from pathlib import Path
 
 from riseon_agents.generation.compatibility import CompatibilityGenerator
@@ -8,6 +6,7 @@ from riseon_agents.models.agent_profile import AgentProfile
 from riseon_agents.models.generation import GenerationTarget
 from riseon_agents.models.identity_spec import IdentitySpec
 from riseon_agents.models.project_instructions import ProjectInstructions
+from riseon_agents.models.skill_spec import SkillSpec
 
 
 class TestProviderCompatibilityGeneration:
@@ -170,3 +169,27 @@ class TestProviderCompatibilityGeneration:
         assert temp_dir / ".codex" / "agents" / "test-agent.toml" in paths
         assert temp_dir / ".hermes.md" in paths
         assert temp_dir / "SOUL.md" in paths
+
+    def test_generate_multi_target_shared_skills_are_not_duplicated(self, temp_dir: Path) -> None:
+        """Shared output paths should be reported once even across multiple providers."""
+        skill = SkillSpec(
+            name="test-skill",
+            description="Test skill description",
+            body="# Test Skill",
+        )
+
+        target = GenerationTarget.local(temp_dir)
+        generator = CompatibilityGenerator()
+        result = generator.generate(
+            target=target,
+            providers=[ProviderTarget.CODEX, ProviderTarget.GEMINI],
+            project_instructions=[],
+            skills=[skill],
+            agent_profiles=[],
+        )
+
+        skill_path = temp_dir / ".agents" / "skills" / "test-skill" / "SKILL.md"
+        matches = [generated for generated in result.files if generated.path == skill_path]
+
+        assert skill_path.exists()
+        assert len(matches) == 1

@@ -1,5 +1,7 @@
 """Generator for provider-native compatibility surfaces."""
 
+from pathlib import Path
+
 from riseon_agents.generation.provider_capabilities import (
     ProviderTarget,
     get_provider_capabilities,
@@ -32,6 +34,7 @@ class CompatibilityGenerator:
     ) -> GenerationResult:
         """Generate supported compatibility surfaces for the selected providers."""
         result = GenerationResult(target=target)
+        emitted_paths: set[tuple[str, str]] = set()
         identity_specs = identity_specs or []
         target.ensure_provider_directories(providers)
 
@@ -41,22 +44,22 @@ class CompatibilityGenerator:
             if project_instructions and capabilities.supports_surface("project_instructions"):
                 for instructions in project_instructions:
                     output_path = emit_project_instructions(target, instructions, provider)
-                    result.add_file(path=output_path, status=self._status_for(output_path))
+                    self._record_emitted(result, emitted_paths, "project_instructions", output_path)
 
             if skills and capabilities.supports_surface("skills"):
                 for skill in skills:
                     output_path = emit_skill_surface(target, skill, provider)
-                    result.add_file(path=output_path, status=self._status_for(output_path))
+                    self._record_emitted(result, emitted_paths, "skills", output_path)
 
             if agent_profiles and capabilities.supports_surface("agents"):
                 if provider is ProviderTarget.CODEX:
                     for agent_profile in agent_profiles:
                         output_path = emit_codex_agent_manifest(target, agent_profile, provider)
-                        result.add_file(path=output_path, status=self._status_for(output_path))
+                        self._record_emitted(result, emitted_paths, "agents", output_path)
                 elif provider is ProviderTarget.GEMINI:
                     for agent_profile in agent_profiles:
                         output_path = emit_gemini_agent_manifest(target, agent_profile, provider)
-                        result.add_file(path=output_path, status=self._status_for(output_path))
+                        self._record_emitted(result, emitted_paths, "agents", output_path)
                 else:
                     result.add_file(
                         path=target.base_path / provider.value,
@@ -70,7 +73,7 @@ class CompatibilityGenerator:
                 if provider is ProviderTarget.HERMES:
                     for identity in identity_specs:
                         output_path = emit_hermes_identity(target, identity, provider)
-                        result.add_file(path=output_path, status=self._status_for(output_path))
+                        self._record_emitted(result, emitted_paths, "identity", output_path)
                 else:
                     result.add_file(
                         path=target.base_path / provider.value,
@@ -81,6 +84,21 @@ class CompatibilityGenerator:
                     )
 
         return result
+
+    def _record_emitted(
+        self,
+        result: GenerationResult,
+        emitted_paths: set[tuple[str, str]],
+        surface: str,
+        output_path: Path,
+    ) -> None:
+        """Record a generated artifact once per unique surface or path."""
+        output_path_str = str(output_path)
+        emission_key = (surface, output_path_str)
+        if emission_key in emitted_paths:
+            return
+        emitted_paths.add(emission_key)
+        result.add_file(path=output_path, status=self._status_for(output_path))
 
     def _status_for(self, output_path: object) -> FileStatus:
         """Return file status for a freshly emitted compatibility artifact."""
