@@ -68,7 +68,7 @@ class TestProviderEmitters:
         assert hermes_path.exists()
 
     def test_emit_codex_agent_manifest(self, temp_dir: Path) -> None:
-        """Codex agent manifests should use the native TOML path and fields."""
+        """Codex agent manifests should use Codex-compatible TOML fields."""
         agent_profile = AgentProfile(
             name="test-agent",
             description="Test agent description",
@@ -79,6 +79,19 @@ class TestProviderEmitters:
             max_turns=10,
             temperature=0.7,
             permissions={"perm1": "value1"},
+            provider_extensions={
+                "approval_policy": "never",
+                "permissions": {
+                    "trusted": {
+                        "network": {
+                            "mode": "limited",
+                            "enabled": True,
+                            "domains": {"example.com": "allow"},
+                        }
+                    }
+                },
+                "default_permissions": "trusted",
+            },
         )
 
         target = GenerationTarget.local(temp_dir)
@@ -91,7 +104,17 @@ class TestProviderEmitters:
         assert 'name = "test-agent"' in content
         assert 'description = "Test agent description"' in content
         assert 'developer_instructions = "# Test Agent Prompt"' in content
-        assert 'tools = ["tool1", "tool2"]' in content
+        assert 'model = "test-model"' in content
+        assert 'approval_policy = "never"' in content
+        assert 'default_permissions = "trusted"' in content
+        assert "[permissions.trusted.network]" in content
+        assert 'mode = "limited"' in content
+        assert "enabled = true" in content
+        assert 'tools = ["tool1", "tool2"]' not in content
+        assert "max_turns = 10" not in content
+        assert "temperature = 0.7" not in content
+        assert 'perm1 = "value1"' not in content
+        assert 'mcp_servers = ["server1"]' not in content
 
     def test_emit_gemini_agent_manifest(self, temp_dir: Path) -> None:
         """Gemini agent manifests should use markdown with YAML frontmatter."""

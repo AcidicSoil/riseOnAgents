@@ -13,7 +13,7 @@ class TestProviderCompatibilityGeneration:
     """Tests for Codex, Gemini, and Hermes compatibility generation."""
 
     def test_generate_codex_agent_manifest(self, temp_dir: Path) -> None:
-        """Codex agent manifests should be emitted with the correct path and TOML content."""
+        """Codex agent manifests should be emitted with validator-compatible TOML content."""
         agent_profile = AgentProfile(
             name="test-agent",
             description="Test agent description",
@@ -26,6 +26,19 @@ class TestProviderCompatibilityGeneration:
             permissions={"perm1": "value1"},
             metadata={"key": "value"},
             source_path=None,
+            provider_extensions={
+                "approval_policy": "never",
+                "permissions": {
+                    "trusted": {
+                        "network": {
+                            "mode": "limited",
+                            "enabled": True,
+                            "domains": {"example.com": "allow"},
+                        }
+                    }
+                },
+                "default_permissions": "trusted",
+            },
         )
 
         target = GenerationTarget.local(temp_dir)
@@ -49,7 +62,13 @@ class TestProviderCompatibilityGeneration:
         assert 'description = "Test agent description"' in toml_content
         assert 'developer_instructions = "# Test Agent Prompt"' in toml_content
         assert 'model = "test-model"' in toml_content
-        assert "max_turns = 10" in toml_content
+        assert 'approval_policy = "never"' in toml_content
+        assert 'default_permissions = "trusted"' in toml_content
+        assert "[permissions.trusted.network]" in toml_content
+        assert 'mode = "limited"' in toml_content
+        assert "enabled = true" in toml_content
+        assert 'mcp_servers = ["server1"]' not in toml_content
+        assert 'perm1 = "value1"' not in toml_content
 
     def test_generate_gemini_agent_manifest(self, temp_dir: Path) -> None:
         """Gemini agent manifests should be emitted with markdown frontmatter content."""

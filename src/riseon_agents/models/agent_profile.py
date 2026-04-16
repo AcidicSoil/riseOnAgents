@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from riseon_agents.models.agent import Subagent
 
@@ -21,7 +22,7 @@ class AgentProfile:
     permissions: dict[str, str] = field(default_factory=dict)
     metadata: dict[str, str] = field(default_factory=dict)
     source_path: Path | None = None
-    provider_extensions: dict[str, str] = field(default_factory=dict)
+    provider_extensions: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_subagent(cls, subagent: Subagent) -> "AgentProfile":
